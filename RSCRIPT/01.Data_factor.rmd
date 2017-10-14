@@ -1,0 +1,136 @@
+---
+title: "01.Data Factoring"
+output: github_document
+---
+Library Inclusion
+```{r setup, include=FALSE}
+Sys.setlocale("LC_CTYPE", "ko_KR.UTF-8")
+libs <- c("Unicode","tm", "plyr", "class")
+lapply(libs, require, character.only = TRUE)
+#library(RMongo)
+
+```
+
+## Data Files List
+
+```{r}
+set.seed(2017);
+setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data')
+file.info(dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data',
+              pattern = 'csv'))
+```
+
+### 0. 전체 데이터 일괄 수집
+
+```{r, echo = FALSE}
+setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data')
+#temp <- dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data',pattern = 'csv')
+
+files <- list.files(pattern=".csv$")
+
+insta_data <-  read.csv(files[1], encoding="UTF-8")
+
+#temp_df <- data.frame(ModelName = character(), Object = character(),stringsAsFactors = F)
+
+for (f in files[-1]){
+  df <- read.csv(f, encoding="UTF-8")
+  insta_data <- rbind(insta_data, df)
+}
+
+drops <- c("X_id","img","reg_date")
+keeps <- c("id","text")
+
+insta_data <- insta_data[ , !(names(insta_data) %in% drops)]
+
+rm(df)
+
+
+df <- do.call("rbind", lapply(insta_data[,2], as.data.frame))
+
+df$text
+```
+
+### 1-1 전처리, SNS 한글 게시글 추출
+
+```{r, echo = FALSE}
+Hangul_Jamo <- as.u_char_range("1100..11FF")
+Hangul_Com_Jamo <- as.u_char_range("3130..318F")
+Hangul_Jamo_Ex_A <- as.u_char_range("A960..A97F")
+Hangul_Syll <- as.u_char_range("AC00..D7AF")
+Hangul_Jamo_Ex_B <- as.u_char_range("D7B0..D7FF")
+
+only_korean_texts <- c()
+
+for(te in insta_data[,2]){
+  test_sent <- sapply(te, as.character)
+  test_sent_split <- strsplit(test_sent, "")[[1]]
+  
+  for (ch in test_sent_split) {
+
+    u_ch <- as.u_char(utf8ToInt(ch))
+    if(!is.na(u_char_match(u_ch,Hangul_Com_Jamo)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo_Ex_A)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo_Ex_B)) ||
+       !is.na(u_char_match(u_ch,Hangul_Syll))
+       ){
+      
+      only_korean_texts <-c(only_korean_texts, te)
+      break
+    }
+  
+  }
+}
+
+```
+
+### 1-1 전처리, SNS 한글 게시글 추출
+```{r}
+
+
+sns_type <- c("in", "fb")
+
+# clean text 
+cleanText <- function(corpus) {
+  corpus.tmMap <- tm_map(corpus, removePunctuation)
+  corpus.tmMap <- tm_map(corpus.tmMap, stripWhitespace)
+  corpus.tmMap <- tm_map(corpus.tmMap, tolower)
+  corpus.tmMap <- tm_map(corpus.tmMap, removeNumbers)
+  corpus.tmMap <- tm_map(corpus.tmMap, removeWords, stopwords("english"))
+  return(corpus.tmMap)
+}
+
+# generate TermDocumentMatrix
+generateTDM <- function(sns_t) {
+  print(sns_t)
+  if(sns_t == "in"){
+    s.cor <- Corpus(VectorSource(insta_data[,2]))
+    # s.cor.cl <- cleanText(s.cor)
+    s.tdm <- TermDocumentMatrix(s.cor)
+    result <- list(name = sns_t, tdm = s.tdm)
+  }else{
+    result <- list(name = sns_t, tdm = "1")
+  }
+  
+  # 
+  # 
+  # s.tdm <- removeSparseTerms(s.tdm, 0.8)
+  #
+  
+
+}
+
+insta_tdm <- lapply(sns_type, generateTDM)
+```
+
+### CSV파일로 데이터 추출
+
+```{r}
+f <- function(x, output){
+  wellID <- 1
+  print(paste(wellID, x[1], x[2], sep=","))
+  cat(paste(wellID, x[1], x[2], sep=","), file= output, append = T, fill = T)
+}
+apply(DF, 1, f, output = 'outputfile.csv')
+```
+

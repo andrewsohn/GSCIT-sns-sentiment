@@ -1,0 +1,37 @@
+---
+title: "01.Data Factoring"
+output: github_document
+---
+Library Inclusion
+```{r setup, include=FALSE}
+#library(RMongo)
+
+```
+
+## GitHub Documents
+
+
+
+```{r}
+#mongo <- mongoDbConnect("InstaCrawley", "localhost", 27017)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r mongo}
+#dates = c()
+#dates <- c(dates, "2017-09-07")
+#dates <- c(dates, "2017-09-08")
+#dates <- c(dates, "2017-09-11")
+#dates <- c(dates, "2017-09-12")
+#for (date in dates){
+  #print(paste("explore-", date, "-Collection"))
+#}
+
+#output <- dbGetQuery(mongo, "explore-2017-09-09-Collection", '{}')
+#print(output)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
