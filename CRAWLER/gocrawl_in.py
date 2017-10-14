@@ -4,6 +4,7 @@ import argparse
 import codecs
 from collections import defaultdict
 import json
+import csv
 import os
 import re
 import sys
@@ -19,20 +20,15 @@ except ImportError:
 	from urllib.request import urlretrieve
 
 import requests
-import selenium
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-import pymongo
+# import pymongo
 import logging
-from logging import FileHandler
-from datetime import datetime
+import datetime
 
 from envprint import EnvPrint
-from loadbuffererror import LoadBufferError
 from timeout import timeout
 
 # SELENIUM CSS SELECTOR
@@ -42,7 +38,9 @@ FIREFOX_FIRST_POST_PATH = "//div[contains(@class, '_8mlbc _vbtk2 _t5r8b')]"
 TIME_TO_CAPTION_PATH = "../../../div/ul/li/span"
 
 # FOLLOWERS/FOLLOWING RELATED
+CSS_EXPLORE_MAIN = "main._8fi2q._2v79o"
 CSS_EXPLORE = "a[href='/explore/']"
+CSS_EXPLORE_MAIN_LIST = "article._gupiw"
 CSS_LOGIN = "a[href='/accounts/login/']"
 CSS_FOLLOWERS = "a[href='/{}/followers/']"
 CSS_FOLLOWING = "a[href='/{}/following/']"
@@ -53,16 +51,32 @@ FOLLOWING_PATH = "//div[contains(text(), 'Following')]"
 SCROLL_UP = "window.scrollTo(0, 0);"
 SCROLL_DOWN = "window.scrollTo(0, document.body.scrollHeight);"
 
-POST_REMOVE = "arguments[0].parentNode.removeChild(arguments[0]);"
+POST_REMOVE = "if('undefined' !== typeof arguments && arguments[0] > 0){ \
+ var ele = document.getElementsByClassName('_70iju'); \
+ var prnt = ele[ele.length-1].parentNode; \
+ for(var i=0; i<arguments[0]; i++){ \
+ var temp_ele = document.getElementsByClassName('_70iju'); \
+ temp_ele[0].parentNode.removeChild(temp_ele[0].parentNode.firstChild); \
+ } \
+ }"
+# POST_REMOVE = "if('undefined' !== typeof arguments && arguments[0] > 0){ \
+#  var ele = document.getElementsByClassName('_70iju'); \
+#  var prnt = ele[ele.length-1].parentNode; \
+#  for(var i=0; i<arguments[0]; i++){ \
+#  var temp_ele = document.getElementsByClassName('_70iju'); \
+#  console.log(arguments[0], temp_ele);\
+#  temp_ele[0].parentNode.removeChild(temp_ele[0].parentNode.firstChild); \
+#  } \
+#  }"
 
-now = datetime.now()
+now = datetime.datetime.now()
 
-class FacebookCrawler(object):
+class InstagramCrawler(object):
 	"""
 		Crawler class
 	"""
 	def __init__(self, headless=True, setting_path='settings.json'):
-		# Setting 
+		# Setting
 		with open(setting_path) as data_file:
 			self.setting = json.load(data_file)
 
@@ -75,20 +89,22 @@ class FacebookCrawler(object):
 
 		self._driver.implicitly_wait(10)
 		self.data = defaultdict(list)
-		
+
 		# DB connection
-		connection = pymongo.MongoClient(self.setting['DB_HOST'], self.setting['DB_PORT'])
+		# connection = pymongo.MongoClient(self.setting['DB_HOST'], self.setting['DB_PORT'])
+		# db_name = self.setting['DB_NAME']
+		# self.db = connection[db_name]
+		# collectionName = "in-explore-{}-Collection".format(now.strftime("%Y-%m-%d"))
+		# self.collection = self.db[collectionName]
 
-		db_name = self.setting['DB_NAME']
-		self.db = connection[db_name]
-		
-		collectionName = "fb-explore-{}-Collection".format(now.strftime("%Y-%m-%d"))
-		self.collection = self.db[collectionName]
-
-	def crawl(self, dir_prefix, query, crawl_type, number, authentication, is_random):
+	def crawl(self, csv_file_loc, query, crawl_type, number, authentication, is_random):
 		EnvPrint.log_info("crawl_type: {}, number: {}, authentication: {}, is_random: {}"
 			.format(crawl_type, number, authentication, is_random))
-		
+
+		# !! CHANGE FROM DB CONNECTION TO FILE SYSTEM !!
+
+		self.csv_file_loc = csv_file_loc
+
 		self.crawl_type = crawl_type
 		self.is_random = is_random
 
@@ -105,6 +121,7 @@ class FacebookCrawler(object):
 			self.refresh_idx = 0
 			self.login(authentication)
 			self.browse_target_page()
+
 			try:
 				self.scrape_tags(number)
 			except Exception:
@@ -115,14 +132,17 @@ class FacebookCrawler(object):
 			self.totalNum = number
 			self.refresh_idx = 0
 			self.login(authentication)
-
+			self.browse_target_page()
 			try:
 				self.scrape_tags(number)
 			except Exception:
 				EnvPrint.log_info("Quitting driver...")
 				self.quit()
-			
-		# Quit driver
+		# 	EnvPrint.log_info("Unknown crawl type: {}".format(crawl_type))
+		# 	self.quit()
+		# 	return
+
+		#Quit driver
 		EnvPrint.log_info("Quitting driver...")
 		self.quit()
 
@@ -130,9 +150,8 @@ class FacebookCrawler(object):
 		"""
 			authentication: path to authentication json file
 		"""
-		# self._driver.get(urljoin(self.setting['FACEBOOK_DOMAIN'], "?sk=h_chr"))
-		self._driver.get(self.setting['FACEBOOK_DOMAIN'])
-		
+		self._driver.get(urljoin(self.setting['INSTA_DOMAIN'], "accounts/login/"))
+
 		if authentication:
 			EnvPrint.log_info("Username and password loaded from {}".format(authentication))
 			# print("Username and password loaded from {}".format(authentication))
@@ -142,19 +161,19 @@ class FacebookCrawler(object):
 			# Input username
 			try:
 				username_input = WebDriverWait(self._driver, 5).until(
-					EC.presence_of_element_located((By.NAME, 'email'))
+					EC.presence_of_element_located((By.NAME, 'username'))
 				)
-				username_input.send_keys(self.auth_dict["FACEBOOK"][self.accountIdx]['username'])
+				username_input.send_keys(self.auth_dict["INSTAGRAM"][self.accountIdx]['username'])
 			except Exception:
 				self._driver.save_screenshot('img/{}'.format('screenshot_login_01.png'))
 
 			# Input password
 			try:
 				password_input = WebDriverWait(self._driver, 5).until(
-					EC.presence_of_element_located((By.NAME, 'pass'))
+					EC.presence_of_element_located((By.NAME, 'password'))
 				)
-				password_input.send_keys(self.auth_dict["FACEBOOK"][self.accountIdx]['password'])
-	
+				password_input.send_keys(self.auth_dict["INSTAGRAM"][self.accountIdx]['password'])
+
 				# Submit
 				password_input.submit()
 			except Exception:
@@ -164,17 +183,10 @@ class FacebookCrawler(object):
 			EnvPrint.log_info("Type your username and password by hand to login!")
 			EnvPrint.log_info("You have a minute to do so!")
 
-		# WebDriverWait(self._driver, 60).until(
-		# 	EC.presence_of_element_located((By.CSS_SELECTOR, CSS_EXPLORE))
-		# )
+		WebDriverWait(self._driver, 60).until(
+			EC.presence_of_element_located((By.CSS_SELECTOR, CSS_EXPLORE))
+		)
 
-	def cleanhtml(self, raw_html):
-		cleanr = re.compile('<.*?>')
-		cleantext = re.sub(cleanr, '', raw_html)
-		return cleantext
-
-	def deletePost(self, div):
-		self._driver.execute_script(POST_REMOVE, div)
 
 	def quit(self):
 		"""
@@ -185,19 +197,17 @@ class FacebookCrawler(object):
 	def browse_target_page(self):
 		# Browse Hashtags
 		if hasattr(self, 'query'):
-			# if self.is_random:
-			# 	self.query = self.query.strip('#')
+			if self.is_random:
+				self.query = self.query.strip('#')
 
 			query = quote(self.query.encode("utf-8"))
 
-			# https://www.facebook.com/search/str/%23%ED%85%8C%EC%8A%A4%ED%8A%B8/stories-keyword/stories-public
-			
-			relative_url = urljoin('search/str/', query, '/stories-keyword/stories-public')
-			
-		else:  # Browse user page
-			relative_url = "?sk=h_chr"
+			relative_url = urljoin('explore/tags/', query.strip('#'))
 
-		target_url = urljoin(self.setting['FACEBOOK_DOMAIN'], relative_url)
+		else:  # Browse user page
+			relative_url = "explore"
+
+		target_url = urljoin(self.setting['INSTA_DOMAIN'], relative_url)
 
 		self._driver.get(target_url)
 
@@ -206,130 +216,162 @@ class FacebookCrawler(object):
 		"""
 			scrape_tags method : scraping Instagram image URL & tags
 		"""
-		post_num = 0
-
-		while post_num < number:
-
+		if self.crawl_type == "tags":
 			try:
+				# scroll page until reached
+				loadmore = WebDriverWait(self._driver, 10).until(
+					EC.presence_of_element_located((By.CSS_SELECTOR, CSS_LOAD_MORE))
+				)
+				loadmore.click()
+			except Exception:
+				self._driver.save_screenshot('img/{}'.format('screenshot_tags_loadmore.png'))
+
+
+		async def deletePost(num):
+			rowNum = int(num / 3)
+			self._driver.execute_script(POST_REMOVE, rowNum)
+
+		async def savePost(new_list):
+			ignore_num = 0
+
+			for i in range(0, len(new_list)):
+
+				ahref_arr = new_list[i].find_elements_by_xpath(".//a")[0].get_attribute("href").split('/')
+				id = ahref_arr[len(ahref_arr)-2]
+
+				img_src = new_list[i].find_elements_by_xpath(".//img[@class='_2di5p']")[0].get_attribute("src")
+				text = new_list[i].find_elements_by_xpath(".//img[@class='_2di5p']")[0].get_attribute("alt")
+				reg_date = datetime.datetime.now()
+				write_date = None
+
+				try:
+					response = requests.head(img_src, timeout=1)
+					write_date = response.headers["last-modified"]
+
+				except requests.exceptions.Timeout:
+					write_date = ""
+				finally:
+					if text:
+						exist_ids = None
+						with open(self.csv_file_loc) as f:
+							csvreader = csv.reader(f)
+							exist_ids = [row[0] for row in csvreader]
+
+						if id in exist_ids:
+							ignore_num = ignore_num + 1
+						else:
+
+							with open(self.csv_file_loc, 'a') as file:
+								# file.write("{},{},{},{},{},{}\n".format(id, img_src, text, self.query, write_date, reg_date))
+
+								csvwriter = csv.writer(file)
+								csvwriter.writerow([id, img_src, text, self.query, write_date, reg_date])
+
+							text_enc = text.encode('utf-8')
+
+							EnvPrint.log_info({"id":id
+							,"img":img_src
+							,"text":text_enc
+							,"has_tag":self.query
+							,"write_date":write_date
+							,"reg_date":reg_date}, "debug")
+
+				# 			# self.collection.insert({"id":id
+				# 			# ,"img":img_src
+				# 			# ,"text":text
+				# 			# ,"has_tag":self.query
+				# 			# ,"write_date":write_date
+				# 			# ,"reg_date":reg_date})
+
+
+
+			last_post_num_new = len(new_list) - ignore_num
+
+			return last_post_num_new
+
+		async def loop_func(last_post_num, load_idx, loop):
+			last_post_num_pre = last_post_num
+			load_idx = load_idx
+
+			while last_post_num_pre <= number:
 				self._driver.execute_script(SCROLL_DOWN)
 				time.sleep(0.2)
-				self._driver.execute_script(SCROLL_UP)
-				time.sleep(0.2)
 
-				main_post = self._driver.find_elements_by_xpath("//div[contains(@class, '_4ikz')]")
-				org_post = main_post[0]
-				post = main_post[0]
-				# post = main_post[post_num]
-				
-				while len(post.find_elements_by_xpath(".//div[contains(@class, '_5pcr') and contains(@class,'fbUserStory')]")):
-					post = post.find_elements_by_xpath(".//div[contains(@class, '_5pcr') and contains(@class,'fbUserStory')]")[0]
+				# explore_main_list_new = await get_new_posts()
 
-				see_more_link = post.find_elements_by_xpath(".//a[contains(@class, 'see_more_link')]")
+				try:
+					WebDriverWait(self._driver, 3).until(
+						EC.presence_of_element_located((By.XPATH, "//div[contains(@class, '_mck9w') and contains(@class,'_gvoze') and contains(@class,'_f2mse')]"))
+					)
 
-				id = ""
-				post_type = ""
-				post_id = ""
+					explore_main_list_new = self._driver.find_elements_by_xpath("//div[contains(@class, '_mck9w') and contains(@class,'_gvoze') and contains(@class,'_f2mse')]")
 
-				if see_more_link :
-					link_data = see_more_link[0].get_attribute("href")
-					if link_data != "#":
-						link_data = link_data.split('?')[0]
-						link_data = link_data.replace("https://www.facebook.com/","")
-						link_data = link_data.split('/')
-						id = link_data[0]
-						post_type = link_data[1]
-						post_id = link_data[2]
+					if last_post_num_pre >= len(explore_main_list_new):
+						continue
 
-				write_utime_ele = post.find_elements_by_xpath(".//abbr[contains(@class, '_5ptz') and contains(@class, 'timestamp')]")
-				write_date = ""
-				write_utime = ""
+					last_post_num_new = await savePost(explore_main_list_new)
 
-				if write_utime_ele:
-					write_utime = write_utime_ele[0].get_attribute("data-utime")
-					write_utime = int(write_utime)
-					write_date = datetime.utcfromtimestamp(write_utime).isoformat()
-					time_atag_href = write_utime_ele[0].find_elements_by_xpath("..")[0].get_attribute("href")
-					link_data = time_atag_href.replace("https://www.facebook.com/","")
-					# link_data = time_atag_href[1:].split('/')
-					link_data = link_data.split('/')
-					if(link_data[0] == "groups"):
-						id = link_data[1]
-						post_type = link_data[0]
-						post_id = link_data[2]+'/'+link_data[3]
+					load_idx=load_idx+1
+					cur_post_count = last_post_num_pre+last_post_num_new
+
+					if self.crawl_type == "tags":
+						EnvPrint.log_info("current post count : {}, tags : {} ---------------------------------".format(cur_post_count, self.query))
 					else:
-						id = link_data[0]
-						post_type = link_data[1]
-						post_id = link_data[2]
-					
-				
-				text = post.find_elements_by_xpath(".//div[contains(@class, '_5pbx') and contains(@class, 'userContent')]")
-				if text:
-					text = text[0].get_attribute("innerHTML")
-					cleanr = re.compile('<.*?>')
-					text = re.sub(cleanr, '', text)
-				else:
-					text = ""
+						EnvPrint.log_info("current post count : {} ---------------------------------".format(cur_post_count))
 
-				img_src_arr = post.find_elements_by_xpath(".//div[contains(@class, '_1dwg') and contains(@class, '_1w_m')]//div[contains(@class, '_3x-2')]//img[@src]")
-				img_src = ""
+					EnvPrint.log_info("post crawling done ------------------------------------------", "debug")
 
-				if img_src_arr:
-					img_src = img_src_arr[0].get_attribute("src")
+					last_post_num_pre = cur_post_count
 
-				if self.collection.find({
-					"id":id, 
-					"post_type":post_type,
-					"post_id":post_id,
-					"write_utime":write_utime
-				}).count() == 0:
+					# await deletePost(last_post_num_new)
+				except Exception:
+					self._driver.save_screenshot('img/{}'.format('screenshot_post_error.png'))
 
-					reg_date = datetime.now()
-					
-					self.collection.insert({"id":id
-						,"post_type":post_type
-						,"post_id":post_id
-						,"img":img_src
-						,"text":text
-						,"reg_date":reg_date
-						,"write_utime":write_utime
-					,"write_date":write_date})
+					# error_box = self._driver.find_elements_by_xpath("//div[contains(@class, '_fb78b')]")
+					# if last_post_num_new == 0:
+					# 	self.leftover_num = number - last_post_num
+					# 	raise Exception("error")
 
-					text_enc = text.encode('utf-8')
+			loop.stop()
 
-					EnvPrint.log_info("current post count : {} ---------------------------------".format(post_num))
+		loop = asyncio.get_event_loop()
 
-					EnvPrint.log_info({"id":id
-						,"post_type":post_type
-						,"post_id":post_id
-						,"img":img_src
-						,"text":text_enc
-						,"reg_date":reg_date
-						,"write_utime":write_utime
-					,"write_date":write_date})
+		load_idx = 0
+		last_post_num = 0
 
-					post_num = post_num + 1
-				
-				self.deletePost(org_post)
+		loop.run_until_complete(loop_func(last_post_num, load_idx, loop))
+		loop.run_forever()
+		# except Exception as e:
+		# 	loop.stop()
+		# 	if e == "error":
+		# 		self.nextAuth()
+		# 		self.logoutAndLogin()
+		# 		self.browse_target_page("explore")
+		# 		loop.close()
+		# 		loop.run_until_complete(loop_func(self.leftover_num, 0, loop))
+		# 		loop.run_forever()
+		# 		# self.scrape_tags(self.leftover_num)
 
-			except Exception:
-				self._driver.save_screenshot('img/{}'.format('screenshot_post_error.png'))
+		# 	print("ok------------------------------")
+		# finally:
+		loop.close()
 
 	def nextAuth(self):
-		self.accountIdx = 0 if len(self.auth_dict["FACEBOOK"])-1 == self.accountIdx else self.accountIdx+1
+		self.accountIdx = 0 if len(self.auth_dict["INSTAGRAM"])-1 == self.accountIdx else self.accountIdx+1
 
 	def logoutAndLogin(self):
-		self._driver.get(urljoin(self.setting['FACEBOOK_DOMAIN'], "accounts/logout"))
+		self._driver.get(urljoin(self.setting['INSTA_DOMAIN'], "accounts/logout"))
 
-		self._driver.get(urljoin(self.setting['FACEBOOK_DOMAIN'], "accounts/login/"))
+		self._driver.get(urljoin(self.setting['INSTA_DOMAIN'], "accounts/login/"))
 
 		EnvPrint.log_info("Since Instagram provides 5000 post views per Hour, relogin with annother username and password loaded from {}".format(authentication))
-		
+
 		# Input username
 		try:
 			username_input = WebDriverWait(self._driver, 5).until(
-				EC.presence_of_element_located((By.NAME, 'email'))
+				EC.presence_of_element_located((By.NAME, 'username'))
 			)
-			username_input.send_keys(self.auth_dict["FACEBOOK"][self.accountIdx]['username'])
+			username_input.send_keys(self.auth_dict["INSTAGRAM"][self.accountIdx]['username'])
 
 		except Exception:
 			self._driver.save_screenshot('img/{}'.format('screenshot_relogin_01.png'))
@@ -337,24 +379,47 @@ class FacebookCrawler(object):
 		# Input password
 		try:
 			password_input = WebDriverWait(self._driver, 5).until(
-				EC.presence_of_element_located((By.NAME, 'pass'))
+				EC.presence_of_element_located((By.NAME, 'password'))
 			)
-			password_input.send_keys(self.auth_dict["FACEBOOK"][self.accountIdx]['password'])
+			password_input.send_keys(self.auth_dict["INSTAGRAM"][self.accountIdx]['password'])
 			# Submit
 			password_input.submit()
-			
+
 		except Exception:
 			self._driver.save_screenshot('img/{}'.format('screenshot_relogin_02.png'))
-		
+
 		WebDriverWait(self._driver, 60).until(
 			EC.presence_of_element_located((By.CSS_SELECTOR, CSS_EXPLORE))
 		)
+
+	# def scroll_to_num_of_posts(self, number):
+		# Get total number of posts of page
+		# print(self._driver.page_source)
+		# num_info = re.search(r'\], "count": \d+',
+		# 				self._driver.page_source).group()
+
+		# num_of_posts = int(re.findall(r'\d+', num_info)[0])
+		# print("posts: {}, number: {}".format(num_of_posts, number))
+		# number = number if number < num_of_posts else num_of_posts
+
+		# # scroll page until reached
+		# loadmore = WebDriverWait(self._driver, 10).until(
+		# 	EC.presence_of_element_located((By.CSS_SELECTOR, CSS_LOAD_MORE))
+		# )
+		# loadmore.click()
+
+		# num_to_scroll = int((number - 12) / 12) + 1
+		# for _ in range(num_to_scroll):
+		# 	self._driver.execute_script(SCROLL_DOWN)
+		# 	time.sleep(0.2)
+		# 	self._driver.execute_script(SCROLL_UP)
+		# 	time.sleep(0.2)
 
 	def scrape_photo_links(self, number, is_hashtag=False):
 		EnvPrint.log_info("Scraping photo links...")
 		encased_photo_links = re.finditer(r'src="([https]+:...[\/\w \.-]*..[\/\w \.-]*'
 								r'..[\/\w \.-]*..[\/\w \.-].jpg)', self._driver.page_source)
-		
+
 		photo_links = [m.group(1) for m in encased_photo_links]
 		EnvPrint.log_info(photo_links,"pprint")
 		# print("Number of photo_links: {}".format(len(photo_links)))
@@ -405,9 +470,9 @@ class FacebookCrawler(object):
 def main():
 	#   Arguments  #
 	parser = argparse.ArgumentParser(description='Pengtai Instagram Crawler')
-	parser.add_argument('-d', '--dir_prefix', type=str,
+	parser.add_argument('-d', '--csv_file_loc', type=str,
 		default='./data/', help='directory to save results')
-	parser.add_argument('-q', '--query', type=str, 
+	parser.add_argument('-q', '--query', type=str,
 		help="target to crawl, add '#' for hashtags")
 	parser.add_argument('-t', '--crawl_type', type=str,
 		default='all', help="Options: 'all' | 'tags' | 'photos' | 'following'")
@@ -448,8 +513,8 @@ def main():
 	EnvPrint.log_info("=========================================")
 	EnvPrint.log_info(args)
 
-	crawler = FacebookCrawler(headless=args.headless, setting_path = args.setting)
-	crawler.crawl(dir_prefix=args.dir_prefix,
+	crawler = InstagramCrawler(headless=args.headless, setting_path = args.setting)
+	crawler.crawl(csv_file_loc=args.csv_file_loc,
 		query=args.query,
 		crawl_type=args.crawl_type,
 		number=args.number,

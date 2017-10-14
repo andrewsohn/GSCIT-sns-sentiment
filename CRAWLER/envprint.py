@@ -1,5 +1,4 @@
 import logging
-# from logging import FileHandler
 
 class EnvPrint():
 	env = None

@@ -1,24 +1,25 @@
 from __future__ import division
 
 import argparse
-# import subprocess
 from subprocess import STDOUT, call, TimeoutExpired
 import os
-import sys
 # import pymongo
 import datetime
 import json
+import csv
 
 GO_CRAWL_CMD = "python3"
-GO_CRAWL_IN_PATH = "{}/gocrawl.py".format(os.path.dirname(os.path.abspath(__file__)))
+GO_CRAWL_IN_PATH = "{}/gocrawl_in.py".format(os.path.dirname(os.path.abspath(__file__)))
 GO_CRAWL_FB_PATH = "{}/gocrawl_fb.py".format(os.path.dirname(os.path.abspath(__file__)))
 
 
-def file_len(fname):
+def csv_len(fname):
     with open(fname) as f:
-        for i, l in enumerate(f):
-            pass
-    return i + 1
+        csvreader = csv.reader(f)
+
+        row_count = sum(1 for row in csvreader)
+
+    return row_count
 
 
 def main():
@@ -84,14 +85,12 @@ def main():
     csv_file_loc = "{}/{}.csv".format(args.dir_prefix, csv_filename)
 
     if os.path.exists(csv_file_loc):
-        DB_CNT = file_len(csv_file_loc)
+        DB_CNT = csv_len(csv_file_loc)
     else:
         with open(csv_file_loc, 'w') as file:
-            file.write("id,img,text,has_tag,write_date,reg_date\n")
+            file.writelines("id,img,text,has_tag,write_date,reg_date\n")
 
     DB_TOBE_CNT = DB_CNT + args.number
-
-    print("count: {}, tobe: {}".format(DB_CNT, DB_TOBE_CNT))
 
     while DB_TOBE_CNT > DB_CURRENT_CNT:
         # print(args.crawl_type)
@@ -118,7 +117,7 @@ def main():
         # 	continue
         # finally:
         # DB_CURRENT_CNT = collection.find({}).count()
-        DB_CURRENT_CNT = file_len(csv_file_loc)
+        DB_CURRENT_CNT = csv_len(csv_file_loc)
     # for num in range(loop_cnt):
 
 

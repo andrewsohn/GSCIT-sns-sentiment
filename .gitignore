@@ -1,6 +1,6 @@
+.idea
 CRAWLER/.Python
 CRAWLER/__pycache__
-CRAWLER/.idea
 CRAWLER/ghostdriver.log
 CRAWLER/auth.json
 CRAWLER/bin

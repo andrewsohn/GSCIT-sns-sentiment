@@ -1,7 +1,7 @@
 {
 	"INSTA_DOMAIN":"http://www.instagram.com",
 	"FACEBOOK_DOMAIN":"http://www.facebook.com",
-	"PHANTOMJS_PATH":"/Users/andrew/dev/GIT/GSCIT-insta-crawl-r/CRAWLER/node_modules/phantomjs/bin/phantomjs",
+	"PHANTOMJS_PATH":"/Users/andrew/dev/GIT/GSCIT-sns-sentiment/CRAWLER/node_modules/phantomjs/bin/phantomjs",
 	"DB_HOST":"localhost",
 	"DB_NAME":"SnsCrawley",
 	"DB_PORT":27017,
