@@ -11,6 +11,7 @@ import sys
 import asyncio
 import time
 import random
+from bs4 import BeautifulSoup
 
 try:
 	from urlparse import urljoin
@@ -276,15 +277,6 @@ class InstagramCrawler(object):
 							,"write_date":write_date
 							,"reg_date":reg_date}, "debug")
 
-				# 			# self.collection.insert({"id":id
-				# 			# ,"img":img_src
-				# 			# ,"text":text
-				# 			# ,"has_tag":self.query
-				# 			# ,"write_date":write_date
-				# 			# ,"reg_date":reg_date})
-
-
-
 			last_post_num_new = len(new_list) - ignore_num
 
 			return last_post_num_new
@@ -475,7 +467,7 @@ def main():
 	parser.add_argument('-q', '--query', type=str,
 		help="target to crawl, add '#' for hashtags")
 	parser.add_argument('-t', '--crawl_type', type=str,
-		default='all', help="Options: 'all' | 'tags' | 'photos' | 'following'")
+		default='all', help="Options: 'all' | 'tags' | 'photos'")
 	parser.add_argument('-n', '--number', type=int, default=0,
 		help='Number of posts to download: integer')
 	parser.add_argument('-l', '--headless', action='store_true',

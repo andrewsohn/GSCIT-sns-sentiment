@@ -10,6 +10,7 @@ import csv
 
 GO_CRAWL_CMD = "python3"
 GO_CRAWL_IN_PATH = "{}/gocrawl_in.py".format(os.path.dirname(os.path.abspath(__file__)))
+GO_CRAWL_IN_ACO_PATH = "{}/gocrawl_in_aco.py".format(os.path.dirname(os.path.abspath(__file__)))
 GO_CRAWL_FB_PATH = "{}/gocrawl_fb.py".format(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -30,7 +31,7 @@ def main():
     parser.add_argument('-q', '--query', type=str,
                         help="target to crawl, add '#' for hashtags")
     parser.add_argument('-t', '--crawl_type', type=str,
-                        default='all', help="Options: 'all' | 'tags' | 'photos' | 'following'")
+                        default='all', help="Options: 'all' | 'tags' | 'photos' | 'acousers'")
     parser.add_argument('-n', '--number', type=int, default=0,
                         help='Number of posts to download: integer')
     parser.add_argument('-k', '--sns_kind', type=str,
@@ -54,7 +55,15 @@ def main():
     DIR_PREFIX = "{}/".format(os.path.dirname(os.path.abspath(__file__)))
     setting = None
 
-    GO_CRAWL_PATH = GO_CRAWL_FB_PATH if args.sns_kind == 'fb' else GO_CRAWL_IN_PATH
+    if args.sns_kind == 'in':
+        if args.crawl_type == 'acousers' or args.crawl_type == 'users':
+            GO_CRAWL_PATH = GO_CRAWL_IN_ACO_PATH
+        else :
+            GO_CRAWL_PATH = GO_CRAWL_IN_PATH
+
+    else :
+        GO_CRAWL_PATH = GO_CRAWL_FB_PATH
+
 
     DB_CURRENT_CNT = 0
 
@@ -81,14 +90,17 @@ def main():
 
     # !! CHANGE FROM DB CONNECTION TO FILE SYSTEM !!
     DB_CNT = 0
-    csv_filename = "{}-explore-{}".format(args.sns_kind, now.strftime("%Y-%m-%d"))
+    csv_filename = "{}-{}-{}".format(args.sns_kind, args.crawl_type, now.strftime("%Y-%m-%d"))
     csv_file_loc = "{}/{}.csv".format(args.dir_prefix, csv_filename)
 
     if os.path.exists(csv_file_loc):
         DB_CNT = csv_len(csv_file_loc)
     else:
         with open(csv_file_loc, 'w') as file:
-            file.writelines("id,img,text,has_tag,write_date,reg_date\n")
+            if args.crawl_type == 'acousers' or args.crawl_type == 'users':
+                file.writelines("post_id,user_id,img,text,write_date,reg_date\n")
+            else :
+                file.writelines("id,img,text,has_tag,write_date,reg_date\n")
 
     DB_TOBE_CNT = DB_CNT + args.number
 
@@ -113,6 +125,9 @@ def main():
         # subprocess.call(cmd_arr)
         # try:
         call(cmd_arr)
+
+        if args.sns_kind == 'in' and args.crawl_type == 'users':
+            break
         # except TimeoutExpired as e:
         # 	continue
         # finally:

@@ -1,0 +1,309 @@
+---
+title: "01.Data Factoring"
+output: github_document
+---
+Library Inclusion
+```{r setup, include=FALSE}
+Sys.setlocale("LC_CTYPE", "ko_KR.UTF-8")
+library(keras)
+library(KoNLP)
+library(tm)
+library(rJava)
+```
+
+## Data Files List
+
+```{r}
+cat('Loading data...\n')
+
+setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
+file.info(dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data',
+              pattern = 'csv'))
+```
+
+### 0. 전체 데이터 일괄 수집
+
+```{r}
+set.seed(1);
+setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
+
+files <- list.files(pattern=".csv$")
+
+raw_data <-  read.csv(files[1], encoding="UTF-8")
+
+df <- do.call("rbind", lapply(raw_data$text, as.data.frame))
+
+removePplTag <- function(x) {
+    gsub("@[[:graph:]]*", "", x)
+}
+
+removeURL <- function(x) {
+    gsub("http://[[:graph:]]*", "", x)
+    gsub("https://[[:graph:]]*", "", x)
+}
+
+removeSpace <- function(x) {
+    gsub("[\r\n]", "", x)
+    
+}
+
+removeDot <- function(x) {
+  gsub("[.]", "", x)
+}
+df$text <- sapply(df$`X[[i]]`, removePplTag)
+df$text <- sapply(df$text, removeURL)
+df$text <- sapply(df$text, removeDot)
+df$text <- sapply(df$text, removeSpace)
+df$text <- sapply(df$text, function(x) {
+  gsub("*#", " #", x)
+})
+df$text <- sapply(df$text, function(x) {
+  gsub("[[[:graph:]]]", "", x)
+})
+
+useSejongDic()
+
+
+```
+### KoNLP 함수들 공부
+```{r}
+
+customConvHangulToJamos <- function(hangul){
+  if(!is.character(hangul) | nchar(hangul) == 0){
+    stop("Input must be legitimate character!")
+  }else{
+    jamos <- .jcall("kr/pe/freesearch/korean/KoHangul", "S","convertHangulStringToJamos",hangul,TRUE)
+	  Encoding(jamos) <- "UTF-8" 
+    return(unlist(strsplit(jamos,intToUtf8(0xFF5C))))
+  }
+}
+
+customConvHangulToKeyStrokes <- function(hangul, isFullwidth=TRUE){
+  if(!is.character(hangul) | nchar(hangul) == 0){
+    stop("Input must be legitimate character!")
+  }else{
+    keystrokes <- .jcall("kr/pe/freesearch/korean/KoHangul", 
+                         "S","convertHangulStringToKeyStrokes",hangul,isFullwidth,TRUE)
+    Encoding(keystrokes) <- "UTF-8"
+    #return(unlist(strsplit(keystrokes,intToUtf8(0xFF5C))))
+    res<- gsub(" ", "", keystrokes)
+    res<- gsub("｜", "", res)
+    return(res)
+  } 
+}
+
+paste(customConvHangulToJamos("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅 #금주 #대학생 "), collapse = "")
+paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "),
+      collapse = "")
+paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "), collapse = "")
+```
+
+
+```{r}
+
+insta_data <- list()
+
+
+#df$ktext <- sapply(df$text, customConvHangulToJamos)
+#df$k2text <- sapply(df$text, customConvHangulToKeyStrokes)
+
+test_df <- do.call("rbind", lapply(raw_data$has_tag, as.data.frame))
+test_df$class <- sapply(test_df$`X[[i]]`, function(x) {
+  #"기쁨","슬픔","즐거움","화남","우울"
+  if(x == "우울" | x == "화남" | x == "슬픔"){
+    return(0)
+  }
+  
+  return(1)
+})
+
+test_df$text <- sapply(df$text, function(x) {
+  res <- utf8ToInt(x)
+  return(res)
+})
+
+train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.8))
+test.idx <- (1:nrow(test_df)) [- train.idx]
+
+
+#test_df[train.idx,]$text
+
+#utf8ToInt('\u2614')
+insta_data <- list(
+  train = list(
+    x = sapply(test_df[train.idx,]$text, function(r) {
+      return(r)
+    }),
+    y = sapply(test_df[train.idx,]$class, function(r) {
+      return(r)
+    })
+  ),
+  test = list(
+    x = sapply(test_df[test.idx,]$text, function(r) {
+      return(r)
+    }),
+    y = sapply(test_df[test.idx,]$class, function(r) {
+      return(r)
+    })
+  )
+)
+
+insta_data$train$x
+```
+insta_data <- list(
+  train = list(
+    x = lapply(test_df[train.idx,]$text, identity),
+    y = sapply(test_df[train.idx,]$class, function(r) {
+      return(r)
+    })
+  ),
+  test = list(
+    x = lapply(test_df[test.idx,]$text, identity),
+    y = sapply(test_df[test.idx,]$class, function(r) {
+      return(r)
+    })
+  )
+)
+```{r}
+#df$text <- sapply(df$text, function(x) {
+#    paste(extractNoun(x), collapse = " ")
+#})
+
+# build corpus
+myCorpus_ <- Corpus(VectorSource(df$text))
+myCorpus_ <- tm_map(myCorpus_, removePunctuation)
+myCorpus_ <- tm_map(myCorpus_, stripWhitespace)
+# myCorpus_ <- tm_map(myCorpus_, removeNumbers)
+myCorpus_ <- tm_map(myCorpus_, tolower)
+myStopwords <- c(stopwords("english"), "rt")
+myCorpus_ <- tm_map(myCorpus_, removeWords, myStopwords)
+```
+
+```{r, echo = FALSE}
+set.seed(1);
+setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
+#temp <- dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data',pattern = 'csv')
+
+files <- list.files(pattern=".csv$")
+
+raw_data <-  read.csv(files[1], encoding="UTF-8")
+
+#temp_df <- data.frame(ModelName = character(), Object = character(),stringsAsFactors = F)
+
+for (f in files[-1]){
+  df <- read.csv(f, encoding="UTF-8")
+  raw_data <- rbind(raw_data, df)
+}
+
+drops <- c("img","reg_date","write_date")
+keeps <- c("id","has_tag","text")
+
+raw_data <- raw_data[ , !(names(raw_data) %in% drops)]
+
+raw_data <- raw_data[sample(nrow(raw_data)),]
+
+rm(df)
+
+# 8:2 Train/Test Data Ratio
+train.idx <- sample(nrow(raw_data), ceiling(nrow(raw_data) * 0.8))
+test.idx <- (1:nrow(raw_data)) [- train.idx]
+
+insta_data <- list(
+  train = list(
+    x = lapply(raw_data$, identity),
+    y = as.integer(raw_data[[1]][[2]])
+  ),
+  test = list(
+    x = lapply(raw_data[[2]][[1]], identity),
+    y = as.integer(raw_data[[2]][[2]])
+  )
+)
+
+cat(length(x_train), 'train sequences\n')
+cat(length(x_test), 'test sequences\n')
+```
+
+### 1-1 전처리, SNS 한글 게시글 추출
+
+```{r, echo = FALSE}
+Hangul_Jamo <- as.u_char_range("1100..11FF")
+Hangul_Com_Jamo <- as.u_char_range("3130..318F")
+Hangul_Jamo_Ex_A <- as.u_char_range("A960..A97F")
+Hangul_Syll <- as.u_char_range("AC00..D7AF")
+Hangul_Jamo_Ex_B <- as.u_char_range("D7B0..D7FF")
+
+only_korean_texts <- c()
+
+for(te in insta_data[,2]){
+  test_sent <- sapply(te, as.character)
+  test_sent_split <- strsplit(test_sent, "")[[1]]
+  
+  for (ch in test_sent_split) {
+
+    u_ch <- as.u_char(utf8ToInt(ch))
+    if(!is.na(u_char_match(u_ch,Hangul_Com_Jamo)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo_Ex_A)) ||
+       !is.na(u_char_match(u_ch,Hangul_Jamo_Ex_B)) ||
+       !is.na(u_char_match(u_ch,Hangul_Syll))
+       ){
+      
+      only_korean_texts <-c(only_korean_texts, te)
+      break
+    }
+  
+  }
+}
+
+```
+
+### 1-1 전처리, SNS 한글 게시글 추출
+```{r}
+
+
+sns_type <- c("in", "fb")
+
+# clean text 
+cleanText <- function(corpus) {
+  corpus.tmMap <- tm_map(corpus, removePunctuation)
+  corpus.tmMap <- tm_map(corpus.tmMap, stripWhitespace)
+  corpus.tmMap <- tm_map(corpus.tmMap, tolower)
+  corpus.tmMap <- tm_map(corpus.tmMap, removeNumbers)
+  corpus.tmMap <- tm_map(corpus.tmMap, removeWords, stopwords("english"))
+  return(corpus.tmMap)
+}
+
+# generate TermDocumentMatrix
+generateTDM <- function(sns_t) {
+  print(sns_t)
+  if(sns_t == "in"){
+    s.cor <- Corpus(VectorSource(insta_data[,2]))
+    # s.cor.cl <- cleanText(s.cor)
+    s.tdm <- TermDocumentMatrix(s.cor)
+    result <- list(name = sns_t, tdm = s.tdm)
+  }else{
+    result <- list(name = sns_t, tdm = "1")
+  }
+  
+  # 
+  # 
+  # s.tdm <- removeSparseTerms(s.tdm, 0.8)
+  #
+  
+
+}
+
+insta_tdm <- lapply(sns_type, generateTDM)
+```
+
+### CSV파일로 데이터 추출
+
+```{r}
+f <- function(x, output){
+  wellID <- 1
+  print(paste(wellID, x[1], x[2], sep=","))
+  cat(paste(wellID, x[1], x[2], sep=","), file= output, append = T, fill = T)
+}
+apply(DF, 1, f, output = 'outputfile.csv')
+```
+
