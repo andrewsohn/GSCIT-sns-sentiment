@@ -2,4 +2,4 @@ keras
 tensorflow
 konlpy
 nltk
-jpype
+numpy
