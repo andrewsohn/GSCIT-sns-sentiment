@@ -44,6 +44,7 @@ y_test <- imdb$test$y
 cat(length(x_train), 'train sequences\n')
 cat(length(x_test), 'test sequences\n')
 
+imdb$train$x
 ```
 
 ## Pad training and test inputs

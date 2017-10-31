@@ -9,6 +9,7 @@ library(keras)
 library(KoNLP)
 library(tm)
 library(rJava)
+library(dplyr)
 ```
 
 ## Data Files List
@@ -16,20 +17,54 @@ library(rJava)
 ```{r}
 cat('Loading data...\n')
 
-setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
-file.info(dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data',
+setwd('/Users/Andrew-MB/OneDrive/교육/대학원/3/빅데이터응용세미나/insta_crawl_data/cur_data/lstm_data')
+
+file.info(dir('/Users/Andrew-MB/OneDrive/교육/대학원/3/빅데이터응용세미나/insta_crawl_data/cur_data/lstm_data',
               pattern = 'csv'))
+```
+
+## Parameters
+
+```{r}
+max_features <- 20000
+maxlen <- 100
+batch_size <- 32
+
 ```
 
 ### 0. 전체 데이터 일괄 수집
 
 ```{r}
 set.seed(1);
-setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
+setwd('/Users/Andrew-MB/OneDrive/교육/대학원/3/빅데이터응용세미나/insta_crawl_data/cur_data/lstm_data')
 
 files <- list.files(pattern=".csv$")
 
 raw_data <-  read.csv(files[1], encoding="UTF-8")
+
+for (f in files[-1]){
+  df <- read.csv(f, encoding="UTF-8")
+  raw_data <- rbind(raw_data, df)
+}
+
+drops <- c("img","reg_date","write_date")
+keeps <- c("id","text","has_tag")
+
+raw_data <- raw_data[ , !(names(raw_data) %in% drops)]
+
+# removing duplicated data
+raw_data <- raw_data %>% 
+         group_by(id, has_tag) %>%
+         summarise(text = toString(unique(text)))
+
+# export to CSV file
+write.csv(raw_data, "/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/MODEL/data/lstm_data171031.csv", row.names=FALSE)
+
+length(raw_data$has_tag[raw_data$has_tag =="기쁨"])
+length(raw_data$has_tag[raw_data$has_tag =="슬픔"])
+length(raw_data$has_tag[raw_data$has_tag =="우울"])
+length(raw_data$has_tag[raw_data$has_tag =="즐거움"])
+length(raw_data$has_tag[raw_data$has_tag =="화남"])
 
 df <- do.call("rbind", lapply(raw_data$text, as.data.frame))
 
@@ -65,38 +100,7 @@ useSejongDic()
 
 
 ```
-### KoNLP 함수들 공부
-```{r}
 
-customConvHangulToJamos <- function(hangul){
-  if(!is.character(hangul) | nchar(hangul) == 0){
-    stop("Input must be legitimate character!")
-  }else{
-    jamos <- .jcall("kr/pe/freesearch/korean/KoHangul", "S","convertHangulStringToJamos",hangul,TRUE)
-	  Encoding(jamos) <- "UTF-8" 
-    return(unlist(strsplit(jamos,intToUtf8(0xFF5C))))
-  }
-}
-
-customConvHangulToKeyStrokes <- function(hangul, isFullwidth=TRUE){
-  if(!is.character(hangul) | nchar(hangul) == 0){
-    stop("Input must be legitimate character!")
-  }else{
-    keystrokes <- .jcall("kr/pe/freesearch/korean/KoHangul", 
-                         "S","convertHangulStringToKeyStrokes",hangul,isFullwidth,TRUE)
-    Encoding(keystrokes) <- "UTF-8"
-    #return(unlist(strsplit(keystrokes,intToUtf8(0xFF5C))))
-    res<- gsub(" ", "", keystrokes)
-    res<- gsub("｜", "", res)
-    return(res)
-  } 
-}
-
-paste(customConvHangulToJamos("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅 #금주 #대학생 "), collapse = "")
-paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "),
-      collapse = "")
-paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "), collapse = "")
-```
 
 
 ```{r}
@@ -117,12 +121,12 @@ test_df$class <- sapply(test_df$`X[[i]]`, function(x) {
   return(1)
 })
 
-test_df$text <- sapply(df$text, function(x) {
-  res <- utf8ToInt(x)
-  return(res)
+test_df$text <- lapply(df$text, function(x) {
+  return(utf8ToInt(x))
 })
 
-train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.8))
+#train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.8))
+train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.5))
 test.idx <- (1:nrow(test_df)) [- train.idx]
 
 
@@ -131,96 +135,54 @@ test.idx <- (1:nrow(test_df)) [- train.idx]
 #utf8ToInt('\u2614')
 insta_data <- list(
   train = list(
-    x = sapply(test_df[train.idx,]$text, function(r) {
+    x = rapply(test_df[train.idx,]$text, function(r) {
       return(r)
     }),
-    y = sapply(test_df[train.idx,]$class, function(r) {
+    y = lapply(test_df[train.idx,]$class, function(r) {
       return(r)
     })
   ),
   test = list(
-    x = sapply(test_df[test.idx,]$text, function(r) {
+    x = lapply(test_df[test.idx,]$text, function(r) {
       return(r)
     }),
-    y = sapply(test_df[test.idx,]$class, function(r) {
+    y = lapply(test_df[test.idx,]$class, function(r) {
       return(r)
     })
   )
 )
 
-insta_data$train$x
+rbind(c(2,3),c(4,5))
+#insta_data$train$x
+rbind(test_df[train.idx,]$text)
 ```
-insta_data <- list(
-  train = list(
-    x = lapply(test_df[train.idx,]$text, identity),
-    y = sapply(test_df[train.idx,]$class, function(r) {
-      return(r)
-    })
-  ),
-  test = list(
-    x = lapply(test_df[test.idx,]$text, identity),
-    y = sapply(test_df[test.idx,]$class, function(r) {
-      return(r)
-    })
-  )
-)
-```{r}
-#df$text <- sapply(df$text, function(x) {
-#    paste(extractNoun(x), collapse = " ")
-#})
 
-# build corpus
-myCorpus_ <- Corpus(VectorSource(df$text))
-myCorpus_ <- tm_map(myCorpus_, removePunctuation)
-myCorpus_ <- tm_map(myCorpus_, stripWhitespace)
-# myCorpus_ <- tm_map(myCorpus_, removeNumbers)
-myCorpus_ <- tm_map(myCorpus_, tolower)
-myStopwords <- c(stopwords("english"), "rt")
-myCorpus_ <- tm_map(myCorpus_, removeWords, myStopwords)
-```
+## parameter settings
+
 
 ```{r, echo = FALSE}
-set.seed(1);
-setwd('/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/RSCRIPT/data')
-#temp <- dir('/Users/Andrew-MB/DEV/05.GIT/GSCIT-insta-crawl-r/RSCRIPT/data',pattern = 'csv')
+# Define training and test sets
+x_train_insta <- insta_data$train$x
+y_train_insta <- insta_data$train$y
+x_test_insta <- insta_data$test$x
+y_test_insta <- insta_data$test$y 
 
-files <- list.files(pattern=".csv$")
+# Output lengths of testing and training sets
+cat(length(x_train_insta), 'train sequences\n')
+cat(length(x_test_insta), 'test sequences\n')
+```
 
-raw_data <-  read.csv(files[1], encoding="UTF-8")
+## Pad training and test inputs
 
-#temp_df <- data.frame(ModelName = character(), Object = character(),stringsAsFactors = F)
+```{r, echo = FALSE}
+cat('Pad sequences (samples x time)\n')
 
-for (f in files[-1]){
-  df <- read.csv(f, encoding="UTF-8")
-  raw_data <- rbind(raw_data, df)
-}
+# Pad training and test inputs
+x_train_insta <- pad_sequences(x_train_insta, maxlen = 1000000)
+x_test_insta <- pad_sequences(x_test_insta, maxlen = 1000000)
 
-drops <- c("img","reg_date","write_date")
-keeps <- c("id","has_tag","text")
-
-raw_data <- raw_data[ , !(names(raw_data) %in% drops)]
-
-raw_data <- raw_data[sample(nrow(raw_data)),]
-
-rm(df)
-
-# 8:2 Train/Test Data Ratio
-train.idx <- sample(nrow(raw_data), ceiling(nrow(raw_data) * 0.8))
-test.idx <- (1:nrow(raw_data)) [- train.idx]
-
-insta_data <- list(
-  train = list(
-    x = lapply(raw_data$, identity),
-    y = as.integer(raw_data[[1]][[2]])
-  ),
-  test = list(
-    x = lapply(raw_data[[2]][[1]], identity),
-    y = as.integer(raw_data[[2]][[2]])
-  )
-)
-
-cat(length(x_train), 'train sequences\n')
-cat(length(x_test), 'test sequences\n')
+x_train[0]
+x_train_insta[0]
 ```
 
 ### 1-1 전처리, SNS 한글 게시글 추출
@@ -255,6 +217,18 @@ for(te in insta_data[,2]){
   }
 }
 
+#df$text <- sapply(df$text, function(x) {
+#    paste(extractNoun(x), collapse = " ")
+#})
+
+# build corpus
+myCorpus_ <- Corpus(VectorSource(df$text))
+myCorpus_ <- tm_map(myCorpus_, removePunctuation)
+myCorpus_ <- tm_map(myCorpus_, stripWhitespace)
+# myCorpus_ <- tm_map(myCorpus_, removeNumbers)
+myCorpus_ <- tm_map(myCorpus_, tolower)
+myStopwords <- c(stopwords("english"), "rt")
+myCorpus_ <- tm_map(myCorpus_, removeWords, myStopwords)
 ```
 
 ### 1-1 전처리, SNS 한글 게시글 추출
@@ -294,6 +268,38 @@ generateTDM <- function(sns_t) {
 }
 
 insta_tdm <- lapply(sns_type, generateTDM)
+```
+### KoNLP 함수들 공부
+```{r}
+
+customConvHangulToJamos <- function(hangul){
+  if(!is.character(hangul) | nchar(hangul) == 0){
+    stop("Input must be legitimate character!")
+  }else{
+    jamos <- .jcall("kr/pe/freesearch/korean/KoHangul", "S","convertHangulStringToJamos",hangul,TRUE)
+	  Encoding(jamos) <- "UTF-8" 
+    return(unlist(strsplit(jamos,intToUtf8(0xFF5C))))
+  }
+}
+
+customConvHangulToKeyStrokes <- function(hangul, isFullwidth=TRUE){
+  if(!is.character(hangul) | nchar(hangul) == 0){
+    stop("Input must be legitimate character!")
+  }else{
+    keystrokes <- .jcall("kr/pe/freesearch/korean/KoHangul", 
+                         "S","convertHangulStringToKeyStrokes",hangul,isFullwidth,TRUE)
+    Encoding(keystrokes) <- "UTF-8"
+    #return(unlist(strsplit(keystrokes,intToUtf8(0xFF5C))))
+    res<- gsub(" ", "", keystrokes)
+    res<- gsub("｜", "", res)
+    return(res)
+  } 
+}
+
+paste(customConvHangulToJamos("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅 #금주 #대학생 "), collapse = "")
+paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "),
+      collapse = "")
+paste(customConvHangulToKeyStrokes("당분간 진짜로 금주해야지🍺🍻🍾🥂👎🙅#금주 #대학생 "), collapse = "")
 ```
 
 ### CSV파일로 데이터 추출

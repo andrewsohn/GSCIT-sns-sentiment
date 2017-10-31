@@ -18,3 +18,7 @@ RSCRIPT/data
 RSCRIPT/.Rproj.user
 RSCRIPT/.Rhistory
 RSCRIPT/RSCRIPT.Rproj
+MODEL/data/
+MODEL/env/
+MODEL/jpype-master/
+MODEL/JPype1.egg-info/
