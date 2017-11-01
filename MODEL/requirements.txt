@@ -3,3 +3,4 @@ tensorflow
 konlpy
 nltk
 numpy
+sklearn

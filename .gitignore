@@ -18,6 +18,7 @@ RSCRIPT/data
 RSCRIPT/.Rproj.user
 RSCRIPT/.Rhistory
 RSCRIPT/RSCRIPT.Rproj
+MODEL/__pycache__
 MODEL/data/
 MODEL/env/
 MODEL/jpype-master/

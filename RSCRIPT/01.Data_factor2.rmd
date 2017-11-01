@@ -57,19 +57,11 @@ raw_data <- raw_data %>%
          group_by(id, has_tag) %>%
          summarise(text = toString(unique(text)))
 
-# export to CSV file
-write.csv(raw_data, "/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/MODEL/data/lstm_data171031.csv", row.names=FALSE)
-
-length(raw_data$has_tag[raw_data$has_tag =="기쁨"])
-length(raw_data$has_tag[raw_data$has_tag =="슬픔"])
-length(raw_data$has_tag[raw_data$has_tag =="우울"])
-length(raw_data$has_tag[raw_data$has_tag =="즐거움"])
-length(raw_data$has_tag[raw_data$has_tag =="화남"])
 
 df <- do.call("rbind", lapply(raw_data$text, as.data.frame))
 
 removePplTag <- function(x) {
-    gsub("@[[:graph:]]*", "", x)
+    gsub("@[[:graph:]]*", " ", x)
 }
 
 removeURL <- function(x) {
@@ -89,29 +81,37 @@ df$text <- sapply(df$`X[[i]]`, removePplTag)
 df$text <- sapply(df$text, removeURL)
 df$text <- sapply(df$text, removeDot)
 df$text <- sapply(df$text, removeSpace)
-df$text <- sapply(df$text, function(x) {
-  gsub("*#", " #", x)
-})
+#df$text <- sapply(df$text, function(x) {
+#  gsub("*#", " #", x)
+#})
 df$text <- sapply(df$text, function(x) {
   gsub("[[[:graph:]]]", "", x)
 })
+df$text <- sapply(df$text, function(x) {
+  gsub("[#]", ' ', x)
+})
+#useSejongDic()
 
-useSejongDic()
+# export to CSV file
+
+
+#length(raw_data$has_tag[raw_data$has_tag =="기쁨"])
+#length(raw_data$has_tag[raw_data$has_tag =="슬픔"])
+#length(raw_data$has_tag[raw_data$has_tag =="우울"])
+#length(raw_data$has_tag[raw_data$has_tag =="즐거움"])
+#length(raw_data$has_tag[raw_data$has_tag =="화남"])
 
 
 ```
 
-
-
 ```{r}
-
-insta_data <- list()
-
-
-#df$ktext <- sapply(df$text, customConvHangulToJamos)
-#df$k2text <- sapply(df$text, customConvHangulToKeyStrokes)
-
 test_df <- do.call("rbind", lapply(raw_data$has_tag, as.data.frame))
+
+test_df$text <- lapply(df$text, function(x) {
+  #return(utf8ToInt(x))
+  return(x)
+})
+
 test_df$class <- sapply(test_df$`X[[i]]`, function(x) {
   #"기쁨","슬픔","즐거움","화남","우울"
   if(x == "우울" | x == "화남" | x == "슬픔"){
@@ -121,9 +121,23 @@ test_df$class <- sapply(test_df$`X[[i]]`, function(x) {
   return(1)
 })
 
-test_df$text <- lapply(df$text, function(x) {
-  return(utf8ToInt(x))
-})
+
+
+drops <- c("X[[i]]")
+test_df <- test_df[ , !(names(test_df) %in% drops)]
+
+write.csv(test_df, "/Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/MODEL/data/lstm_data171101.csv", row.names=FALSE)
+```
+
+```{r}
+
+insta_data <- list()
+
+
+#df$ktext <- sapply(df$text, customConvHangulToJamos)
+#df$k2text <- sapply(df$text, customConvHangulToKeyStrokes)
+
+
 
 #train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.8))
 train.idx <- sample(nrow(test_df), ceiling(nrow(test_df) * 0.5))
