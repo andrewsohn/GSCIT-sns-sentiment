@@ -1,17 +1,9 @@
 from __future__ import print_function
 
-from keras.preprocessing import sequence
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
-from keras.datasets import imdb
-
 import numpy as np
 import warnings
 import json
 
-# test = np.load("/Users/Andrew-MB/Downloads/imdb.npz")
-# # test.
-# pprint(test.items())
 def load_data(path="./data/lstm_data171101.npz", num_words=None, skip_top=0,
               maxlen=None, seed=113,
               start_char=1, oov_char=2, index_from=3, **kwargs):

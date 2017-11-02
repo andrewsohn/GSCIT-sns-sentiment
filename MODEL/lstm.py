@@ -1,21 +1,52 @@
 from __future__ import print_function
+
+import argparse
 import numpy as np
-from konlpy.tag import Twitter;
-from konlpy.corpus import kobill  # Docs from pokr.kr/bill
-from konlpy.corpus import CorpusLoader    # Docs from pokr.kr/bill
-import nltk
-from konlpy.utils import pprint
-from konlpy import jvm
-import csv
+import json
+import os
 from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
-from keras.datasets import imdb
 from getDataSet import load_data
-
-# (x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
+import settings
 
 def main():
+    #   Arguments  #
+    parser = argparse.ArgumentParser(description='Pengtai Instagram RNN LSTM Model')
+    parser.add_argument('-t', '--type', type=str, help="run type Options: 'n' for new | 'o' for overwrite", default='o',
+                        nargs='+')
+    parser.add_argument('-v', '--version', help='current version', action='store_true')
+
+    args = parser.parse_args()
+    #  End Argparse #
+
+    # VERSION CONTROL #
+    if args.version:
+        with open(settings.VERSION_JSON, "r") as jsonFile:
+            data = json.load(jsonFile)
+
+        return print(data['version'])
+
+    if args.type:
+        if args.type[0] == 'n' and args.type[1]:
+            with open(settings.VERSION_JSON, "r") as jsonFile:
+                data = json.load(jsonFile)
+
+            data["version"] = args.type[1]
+
+            with open(settings.VERSION_JSON, "w") as jsonFile:
+                json.dump(data, jsonFile)
+
+            VERSION = args.type[1]
+
+        elif args.type[0] == 'o':
+            with open(settings.VERSION_JSON, "r") as jsonFile:
+                data = json.load(jsonFile)
+
+            VERSION = data["version"]
+
+    # End VERSION CONTROL #
+
     max_features = 100000
     # cut texts after this number of words
     # (among top max_features most common words)
@@ -23,15 +54,14 @@ def main():
     batch_size = 32
 
     print('Loading data...')
-    # temp = imdb.load_data(num_words=max_features)
 
-    (x_train, y_train), (x_test, y_test) = load_data("./data/lstm_data171101.npz")
+    npz_fn = settings.INPUT_DATA_FILENAME.format(VERSION)
+    npz_file = os.path.join(settings.INPUT_DIR, npz_fn)
+    (x_train, y_train), (x_test, y_test) = load_data(npz_file)
 
-    # (x_train, y_train), (x_test, y_test) = temp
-    # print(temp)
     print(len(x_train), 'train sequences')
     print(len(x_test), 'test sequences')
-    #
+
     print('Pad sequences (samples x time)')
     x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
     x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
@@ -55,6 +85,10 @@ def main():
               epochs=4,
               validation_data=[x_test, y_test])
 
+    mod_save_fn = settings.MODEL_FILENAME.format(VERSION)
+    mod_save_path = os.path.join(settings.OUTPUT_DIR, mod_save_fn)
+    model.save(mod_save_path)
+    del model
+
 if __name__ == "__main__":
-    jvm.init_jvm()
     main()

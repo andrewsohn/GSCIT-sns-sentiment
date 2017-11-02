@@ -4,3 +4,4 @@ konlpy
 nltk
 numpy
 sklearn
+h5py
