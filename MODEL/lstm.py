@@ -50,8 +50,8 @@ def main():
     max_features = 100000
     # cut texts after this number of words
     # (among top max_features most common words)
-    maxlen = 100
-    batch_size = 32
+    maxlen = settings.MAX_LENGTH
+    batch_size = settings.BATCH_SIZE
 
     print('Loading data...')
 
@@ -85,9 +85,23 @@ def main():
               epochs=4,
               validation_data=[x_test, y_test])
 
+    # ALL IN ONE MODEL FILE EXPORT #
     mod_save_fn = settings.MODEL_FILENAME.format(VERSION)
     mod_save_path = os.path.join(settings.OUTPUT_DIR, mod_save_fn)
     model.save(mod_save_path)
+
+    # MODEL ARCHITECTURE + WEIGHT FILE EXPORT #
+    # mod_weight_save_fn = settings.MODEL_WEIGHT_FILENAME.format(VERSION)
+    # mod_weight_save_path = os.path.join(settings.OUTPUT_DIR, mod_weight_save_fn)
+    # model.save_weights(mod_weight_save_path)
+    #
+    # mod_arch_save_fn = settings.MODEL_ARCH_FILENAME.format(VERSION)
+    # mod_arch_save_path = os.path.join(settings.OUTPUT_DIR, mod_arch_save_fn)
+    # model_json = model.to_json()
+    #
+    # with open(mod_arch_save_path, 'w', encoding='UTF-8') as f:
+    #     f.write(json.dumps(model_json))
+
     del model
 
 if __name__ == "__main__":

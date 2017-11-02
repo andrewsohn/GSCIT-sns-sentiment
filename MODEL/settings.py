@@ -10,6 +10,13 @@ CORPUS_FILENAME = "lstm_data.{}.txt"
 VOCAB_FILENAME = "lstm_data.{}.json"
 INPUT_DATA_FILENAME = "lstm_data.{}.npz"
 MODEL_FILENAME = "model.{}.h5"
+MODEL_WEIGHT_FILENAME = "model.weight.{}.h5"
+MODEL_ARCH_FILENAME = "model.arch.{}.json"
 
+# DATA SET
 TRAIN_TEST_RATIO = 0.5
 DATASET_RANTOM_STATE = 42
+
+# MODEL
+BATCH_SIZE = 32
+MAX_LENGTH = 100

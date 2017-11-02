@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import argparse
 import numpy as np
-from konlpy.tag import Twitter;
+from konlpy.tag import Twitter
 from konlpy import jvm
 import csv
 from sklearn.model_selection import train_test_split
