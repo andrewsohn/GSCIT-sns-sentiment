@@ -23,3 +23,5 @@ MODEL/data/
 MODEL/env/
 MODEL/jpype-master/
 MODEL/JPype1.egg-info/
+MODEL/in/
+MODEL/out/
