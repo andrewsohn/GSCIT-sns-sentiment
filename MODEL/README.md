@@ -84,10 +84,18 @@ Get Started
 	$ cd {YOUR APP NAME}
 	$ pip install -r requirements.txt
 
+Test Prediction
+------------------
+`./new_data.json`에 있는 샘플 인스타그램 글을 가지고 예측하는 스크립트
+
+	$ python predict_single.py 
+	
+	결과 : [[ 0.01154671]]  # 즉 해당 글은 0에 가까우므로 Negative한 감성 예측
+
 Change Log
 ------------------
  * `v 1.0.0`
 	 * [start] app initiated
-	 * [update] facebook crawling added
+	 * [update] prediction test script added
 
 
