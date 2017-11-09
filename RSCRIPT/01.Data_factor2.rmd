@@ -95,11 +95,11 @@ df$text <- sapply(df$text, function(x) {
 # export to CSV file
 
 
-#length(raw_data$has_tag[raw_data$has_tag =="기쁨"])
-#length(raw_data$has_tag[raw_data$has_tag =="슬픔"])
-#length(raw_data$has_tag[raw_data$has_tag =="우울"])
-#length(raw_data$has_tag[raw_data$has_tag =="즐거움"])
-#length(raw_data$has_tag[raw_data$has_tag =="화남"])
+length(raw_data$has_tag[raw_data$has_tag =="기쁨"])
+length(raw_data$has_tag[raw_data$has_tag =="슬픔"])
+length(raw_data$has_tag[raw_data$has_tag =="우울"])
+length(raw_data$has_tag[raw_data$has_tag =="즐거움"])
+length(raw_data$has_tag[raw_data$has_tag =="화남"])
 
 
 ```
@@ -107,7 +107,7 @@ df$text <- sapply(df$text, function(x) {
 ```{r}
 test_df <- do.call("rbind", lapply(raw_data$has_tag, as.data.frame))
 
-test_df$text <- lapply(df$text, function(x) {
+test_df$text <- sapply(df$text, function(x) {
   #return(utf8ToInt(x))
   return(x)
 })

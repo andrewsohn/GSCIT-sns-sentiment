@@ -5,6 +5,7 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 INPUT_DIR = os.path.join(BASE_DIR, 'in')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'out')
 
+CSV_FILENAME = "lstm_data.{}.csv"
 CORPUS_NAME = "insta"
 CORPUS_FILENAME = "lstm_data.{}.txt"
 VOCAB_FILENAME = "lstm_data.{}.json"
@@ -14,7 +15,7 @@ MODEL_WEIGHT_FILENAME = "model.weight.{}.h5"
 MODEL_ARCH_FILENAME = "model.arch.{}.json"
 
 # DATA SET
-TRAIN_TEST_RATIO = 0.5
+TRAIN_TEST_RATIO = 0.25
 DATASET_RANTOM_STATE = 42
 
 # MODEL

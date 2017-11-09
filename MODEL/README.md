@@ -35,17 +35,24 @@ API Documentation
 ------------------
 학습 모델을 생성하기 위해서는 반드시 아래의 커맨드 순서를 지켜야 하며 `setWordMap.py`와 `word2vec.py`는 `-d` 값을 넣어서 실행해야 한다.
 
+**dataInitialize.py** :
+> 특정 폴더 하위 복수의 CSV파일의 데이터를 모두 수집해 대상 경로에 CSV파일(HEADER형태: text, class) 생성
+
+	$ python dataInitialize.py -d ./data -i /Users/Andrew-MB/OneDrive/교육/대학원/3/빅데이터응용세미나/insta_crawl_data/cur_data/lstm_data
+
+	> 결과: ./data/ 디렉토리에 위치하는 csv 파일
+
 **setWordMap.py** :
 > 입력 데이터의 모든 텍스트를 단어 단위로 나누어 JSON형태의 Word Map을 생성 
 
-	$ python setWordMap.py -t o -d ./data/lstm_data171101.csv
+	$ python setWordMap.py -t o -d ./data/lstm_data.v.1.0.csv
 	
 	> 결과: ./data/ 디렉토리에 위치하는 json 파일
 
 **word2vec.py** :
 > 개별 입력 데이터를 vector array로 변환한 뒤 최종 전처리 데이터 npz 파일 생성
 
-	$ python word2vec.py -t o -d ./data/lstm_data171101.csv
+	$ python word2vec.py -t o -d ./data/lstm_data.v.1.0.csv
 
 	> 결과: ./in/ 디렉토리에 위치하는 npz 파일
 

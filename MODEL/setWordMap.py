@@ -77,7 +77,7 @@ def main():
 
     # pprint(ko.tokens)  # returns number of tokens (document length)
     # print(len(set(ko.tokens)))  # returns number of unique tokens
-    vocab = dict([(item[0], index) for index, item in enumerate(ko.vocab().items())])
+    vocab = dict([(item[0], index+1) for index, item in enumerate(ko.vocab().items())])
 
     vocab_fn = settings.VOCAB_FILENAME.format(VERSION)
     vocab_file = os.path.join(settings.DATA_DIR, vocab_fn)
