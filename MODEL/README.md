@@ -97,12 +97,6 @@ Test Prediction
 
 	$ python predict_single.py 
 	
-	결과 : [[ 0.01154671]]  # 즉 해당 글은 0에 가까우므로 Negative한 감성 예측
-
-Change Log
-------------------
- * `v 1.0.0`
-	 * [start] app initiated
-	 * [update] prediction test script added
-
-
+	결과 : [[ 0.03614694  0.17107859  0.54377407  0.11313056  0.13586989]]  
+	# 기쁨 즐거움 우울 슬픔 화남 순서
+	# 3번째 클래스가 가장 높은 예측치, 즉 우울한 감성 예측
