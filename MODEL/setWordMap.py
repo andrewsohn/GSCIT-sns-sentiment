@@ -1,5 +1,5 @@
 from __future__ import print_function
-from konlpy.tag import Twitter;
+from konlpy.tag import Twitter
 from konlpy.corpus import CorpusLoader
 from konlpy.utils import installpath as konlpy_path
 import nltk
@@ -47,9 +47,6 @@ def main():
             VERSION = data["version"]
 
     # End VERSION CONTROL #
-
-    # ./data/하위 csv파일을 읽어 /Users/Andrew-MB/DEV/05.GIT/GSCIT-sns-sentiment/MODEL/env/lib/python3.6/site-packages/konlpy/data/corpus/insta
-    # 하위로 txt파일을 생성해야 한다.
 
     name = settings.CORPUS_NAME
 
